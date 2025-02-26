@@ -1,2 +1,0 @@
-# AspAIra
-Capstone Project
