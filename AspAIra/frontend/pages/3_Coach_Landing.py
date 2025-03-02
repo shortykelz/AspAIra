@@ -1,129 +1,269 @@
 import streamlit as st
-import requests
+
+# Initialize session states
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 'coach_landing'
+if 'access_token' not in st.session_state:
+    st.session_state.access_token = None
+if 'current_module' not in st.session_state:
+    st.session_state.current_module = None
 
 # Page configuration
 st.set_page_config(
     page_title="AspAIra - Financial Coach",
     page_icon="🌱",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 # Custom CSS
 st.markdown("""
 <style>
+    /* Hide Streamlit elements */
+    [data-testid="collapsedControl"] {display: none !important;}
+    section[data-testid="stSidebar"] {display: none !important;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    
+    /* Block analytics */
+    iframe[src*="analytics"], iframe[src*="segment"],
+    script[src*="analytics"], script[src*="segment"],
+    div[data-testid="stGoogleAnalytics"] {
+        display: none !important;
+    }
+    
+    /* Main styles */
     .stApp {
         max-width: 100%;
         padding: 1rem;
     }
+    
     .main-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
         padding: 1rem;
-        margin-bottom: 60px;  /* Space for bottom nav */
+        max-width: 800px;
+        margin: 0 auto;
     }
-    .chatbot-container {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        width: 100%;
-        max-width: 400px;
-    }
-    .chatbot-icon {
+    
+    .logo {
         font-size: 2rem;
+        margin-bottom: 2rem;
+        color: #000000;
     }
-    .chatbot-text {
-        text-align: left;
-        flex-grow: 1;
+    
+    /* Button styles */
+    .stButton > button {
+        width: 100% !important;
+        padding: 0.75rem 1.5rem !important;
+        font-size: 1.1rem !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important;
+        background-color: #FF4B4B !important;
+        color: white !important;
+        border: 2px solid transparent !important;
+        cursor: pointer !important;
+        transition: background-color 0.2s ease !important;
     }
-    .module-button {
+    
+    .stButton > button:hover {
+        background-color: #E63E3E !important;
+    }
+    
+    .stButton > button:focus {
+        outline: 2px solid #000000 !important;
+        outline-offset: 2px !important;
+    }
+    
+    /* Module styles */
+    .module-container {
         width: 100%;
-        max-width: 400px;
-        margin: 0.5rem 0;
-        padding: 1rem;
-        background-color: #f0f0f0;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        text-align: left;
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background-color: #f8f9fa;
+        border-radius: 8px;
     }
-    .module-button:hover {
-        background-color: #e0e0e0;
+    
+    .module-row {
+        margin-bottom: 1.5rem;
     }
-    .bottom-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: white;
-        padding: 1rem;
+    
+    /* Navigation styles */
+    .nav-container {
+        width: 100%;
+        max-width: 600px;
+        margin: 2rem auto;
         display: flex;
-        justify-content: space-around;
-        align-items: center;
-        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+        justify-content: space-between;
+        gap: 1rem;
     }
+    
     .nav-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        font-size: 0.8rem;
+        flex: 1;
     }
-    .nav-item.active {
-        font-weight: bold;
-        color: #4CAF50;
+    
+    /* Chat container */
+    .chat-container {
+        width: 100%;
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    /* Hide problematic elements */
+    [data-baseweb="select"] > div[aria-hidden="true"] {
+        display: none !important;
+    }
+    
+    @media (forced-colors: active) {
+        .stButton > button {
+            border: 2px solid ButtonText !important;
+            background-color: ButtonFace !important;
+            color: ButtonText !important;
+        }
+        
+        .stButton > button:hover,
+        .stButton > button:focus {
+            border-color: Highlight !important;
+            background-color: ButtonFace !important;
+            color: Highlight !important;
+        }
+        
+        .module-container,
+        .chat-container {
+            border: 1px solid ButtonText !important;
+            background-color: Canvas !important;
+            color: CanvasText !important;
+        }
+        
+        .logo,
+        h2, h3, p {
+            color: CanvasText !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Check authentication
-if 'access_token' not in st.session_state or not st.session_state.access_token:
-    st.switch_page("pages/1_Login.py")
+# Main container with semantic HTML
+st.markdown('<main class="main-container">', unsafe_allow_html=True)
 
-# Main container
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
+# Back button with proper labeling
+st.markdown('<div class="button-container">', unsafe_allow_html=True)
+if st.button("← Back", key="back_button", help="Return to the previous page"):
+    st.session_state.current_page = 'profile2'
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
-# Chatbot section
+# Logo and Title
+st.markdown('<h1 class="logo">🌱 AspAIra</h1>', unsafe_allow_html=True)
+
+# Welcome message
 st.markdown("""
-<div class="chatbot-container">
-    <div class="chatbot-icon">🤖</div>
-    <div class="chatbot-text">
-        <p>Hello! Here are some recommended Learning Modules for you!</p>
-    </div>
+<div class="module-container">
+    <h2>Welcome to Your Financial Journey!</h2>
+    <p>Let's work together to achieve your financial goals.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Learning modules
-modules = [
-    "Banking Options",
-    "Debt Repayment",
-    "Sending Money Home",
-    "Creating a Budget",
-    "Learn Financial Basics"
-]
+# Learning modules section
+st.markdown('<div class="module-container">', unsafe_allow_html=True)
 
-for module in modules:
-    if st.button(module, key=module, use_container_width=True):
-        # Store the interaction in DynamoDB (to be implemented)
-        st.info(f"Module {module} selected - This feature will be implemented in the next phase")
+st.markdown('<h3>Learning Modules</h3>', unsafe_allow_html=True)
+
+st.markdown('<div class="module-row">', unsafe_allow_html=True)
+if st.button(
+    "📊 Budgeting Basics",
+    key="budgeting_module",
+    help="Learn the fundamentals of creating and managing a budget",
+    use_container_width=True
+):
+    st.session_state.current_module = 'budgeting'
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="module-row">', unsafe_allow_html=True)
+if st.button(
+    "💰 Smart Saving",
+    key="saving_module",
+    help="Discover effective strategies for saving money",
+    use_container_width=True
+):
+    st.session_state.current_module = 'saving'
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="module-row">', unsafe_allow_html=True)
+if st.button(
+    "🏦 Banking & Remittance",
+    key="banking_module",
+    help="Learn about banking services and sending money home safely",
+    use_container_width=True
+):
+    st.session_state.current_module = 'banking'
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# AI Assistant chat section
+st.markdown("""
+<div class="chat-container">
+    <h3>Your AI Financial Assistant</h3>
+    <p>Have questions? I'm here to help! Ask me anything about personal finance.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Bottom navigation
-st.markdown("""
-<div class="bottom-nav">
-    <div class="nav-item active">
-        <div>📚</div>
-        Coach
-    </div>
-    <div class="nav-item">
-        <div>👤</div>
-        Profile
-    </div>
-    <div class="nav-item">
-        <div>💬</div>
-        Chat Support
-    </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="nav-container">', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True) 
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown('<div class="nav-item">', unsafe_allow_html=True)
+    if st.button(
+        "👩‍🏫 Coach",
+        key="nav_coach",
+        help="Return to the coach dashboard",
+        use_container_width=True
+    ):
+        st.session_state.current_page = 'coach_landing'
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    st.markdown('<div class="nav-item">', unsafe_allow_html=True)
+    if st.button(
+        "👤 Profile",
+        key="nav_profile",
+        help="View and edit your profile",
+        use_container_width=True
+    ):
+        st.session_state.current_page = 'profile1'
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col3:
+    st.markdown('<div class="nav-item">', unsafe_allow_html=True)
+    if st.button(
+        "💬 Chat",
+        key="nav_chat",
+        help="Chat with your AI financial assistant",
+        use_container_width=True
+    ):
+        st.session_state.current_page = 'chat'
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('</main>', unsafe_allow_html=True) 

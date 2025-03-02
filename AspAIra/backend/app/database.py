@@ -1,5 +1,7 @@
 import boto3
+import os
 from botocore.exceptions import ClientError
+from botocore.config import Config
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -12,24 +14,41 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# DynamoDB configuration for local development
+# DynamoDB configuration
 dynamodb = boto3.resource(
     'dynamodb',
-    endpoint_url='http://localhost:8000',
+    endpoint_url='http://localhost:8001',
     region_name='local',
     aws_access_key_id='dummy',
-    aws_secret_access_key='dummy'
+    aws_secret_access_key='dummy',
+    config=Config(
+        connect_timeout=5,
+        retries={'max_attempts': 1}
+    )
 )
+
+TABLE_NAME = 'AspAIra_Users'
 
 def _create_table_if_not_exists():
     try:
+        # Check if table exists
+        dynamodb.Table(TABLE_NAME).table_status
+        print(f"Table {TABLE_NAME} exists")
+    except:
+        print(f"Creating table {TABLE_NAME}")
         table = dynamodb.create_table(
-            TableName='AspAIra_Users',
+            TableName=TABLE_NAME,
             KeySchema=[
-                {'AttributeName': 'username', 'KeyType': 'HASH'}
+                {
+                    'AttributeName': 'username',
+                    'KeyType': 'HASH'
+                }
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'username', 'AttributeType': 'S'}
+                {
+                    'AttributeName': 'username',
+                    'AttributeType': 'S'
+                }
             ],
             ProvisionedThroughput={
                 'ReadCapacityUnits': 5,
@@ -37,33 +56,49 @@ def _create_table_if_not_exists():
             }
         )
         table.wait_until_exists()
-    except ClientError as e:
-        if e.response['Error']['Code'] != 'ResourceInUseException':
-            raise
+        print(f"Table {TABLE_NAME} created successfully")
 
+def get_table():
+    return dynamodb.Table(TABLE_NAME)
+
+# Create table on module import
 _create_table_if_not_exists()
-table = dynamodb.Table('AspAIra_Users')
 
 def create_user(username: str, password: str):
+    print(f"Attempting to create user: {username}")  # Debug log
     hashed_password = pwd_context.hash(password)
     try:
+        table = dynamodb.Table(TABLE_NAME)
+        print(f"Got table reference: {TABLE_NAME}")  # Debug log
+        
+        # First check if user exists
+        existing_user = table.get_item(Key={'username': username}).get('Item')
+        if existing_user:
+            print(f"User {username} already exists")  # Debug log
+            return False
+            
+        # Create new user
         table.put_item(
             Item={
                 'username': username,
                 'hashed_password': hashed_password,
                 'is_active': True,
-                'profile_completed': False
-            },
-            ConditionExpression='attribute_not_exists(username)'
+                'profile_completed': False,
+                'created_at': datetime.utcnow().isoformat()
+            }
         )
+        print(f"Successfully created user: {username}")  # Debug log
         return True
     except ClientError as e:
-        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
-            return False
+        print(f"Error creating user: {str(e)}")  # Debug log
+        raise
+    except Exception as e:
+        print(f"Unexpected error creating user: {str(e)}")  # Debug log
         raise
 
 def get_user(username: str):
     try:
+        table = dynamodb.Table(TABLE_NAME)
         response = table.get_item(Key={'username': username})
         return response.get('Item')
     except ClientError:
@@ -96,37 +131,86 @@ def get_user_from_token(token: str):
 
 def update_profile_part1(username: str, profile_data: dict):
     try:
+        print(f"Attempting to update profile1 for user {username}")
+        print(f"Profile data to save: {profile_data}")
+        table = dynamodb.Table(TABLE_NAME)
+        
+        # First check if user exists
+        existing_user = table.get_item(Key={'username': username})
+        print(f"Existing user data: {existing_user}")
+        
         response = table.update_item(
-            Key={'username': username},
-            UpdateExpression="set profile_part1 = :p",
+            Key={
+                'username': username
+            },
+            UpdateExpression='SET profile1 = :profile_data, profile1_complete = :complete',
             ExpressionAttributeValues={
-                ':p': profile_data
+                ':profile_data': profile_data,
+                ':complete': True
             },
             ReturnValues="UPDATED_NEW"
         )
-        return response
-    except ClientError:
-        return None
+        print(f"DynamoDB response: {response}")
+        return True
+    except Exception as e:
+        print(f"Error updating profile1 for user {username}")
+        print(f"Error type: {type(e)}")
+        print(f"Error message: {str(e)}")
+        print(f"Error details: {e.__dict__}")
+        return False
 
 def update_profile_part2(username: str, profile_data: dict):
     try:
+        table = dynamodb.Table(TABLE_NAME)
         response = table.update_item(
-            Key={'username': username},
-            UpdateExpression="set profile_part2 = :p, profile_completed = :t",
+            Key={
+                'username': username
+            },
+            UpdateExpression='SET profile2 = :profile_data, profile2_complete = :complete',
             ExpressionAttributeValues={
-                ':p': profile_data,
-                ':t': True
+                ':profile_data': profile_data,
+                ':complete': True
             },
             ReturnValues="UPDATED_NEW"
         )
-        return response
-    except ClientError:
-        return None
+        print(f"Updated profile2 for user {username}: {response}")
+        return True
+    except Exception as e:
+        print(f"Error updating profile2 for user {username}: {str(e)}")
+        return False
 
 def get_profile_status(username: str):
-    user = get_user(username)
-    if not user:
-        return None
-    return {
-        'profile_completed': user.get('profile_completed', False)
-    } 
+    try:
+        table = dynamodb.Table(TABLE_NAME)
+        response = table.get_item(
+            Key={
+                'username': username
+            },
+            ProjectionExpression='profile1_complete, profile2_complete'
+        )
+        if 'Item' in response:
+            return {
+                'profile1_complete': response['Item'].get('profile1_complete', False),
+                'profile2_complete': response['Item'].get('profile2_complete', False)
+            }
+        return {
+            'profile1_complete': False,
+            'profile2_complete': False
+        }
+    except Exception as e:
+        print(f"Error getting profile status for user {username}: {str(e)}")
+        return {
+            'profile1_complete': False,
+            'profile2_complete': False
+        }
+
+def scan_all_users():
+    try:
+        table = dynamodb.Table(TABLE_NAME)
+        response = table.scan()
+        return response.get('Items', [])
+    except Exception as e:
+        print(f"Error scanning users: {str(e)}")
+        return []
+
+# End of file - removing reset_database function 
