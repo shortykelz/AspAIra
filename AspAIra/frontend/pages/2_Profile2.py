@@ -233,11 +233,11 @@ with st.form("profile2"):
             success, message = update_profile(data)
             if success:
                 st.session_state.profile2_data = data
-        st.session_state.profile2_complete = True
+                st.session_state.profile2_complete = True
                 st.success("Profile completed!")
-        st.switch_page("pages/3_Coach_Landing.py")
-    else:
+                st.switch_page("pages/3_Coach_Landing.py")
+            else:
                 st.error(f"Error: {message}")
 
 st.markdown('</div>', unsafe_allow_html=True)  # Close form container
-st.markdown('</main>', unsafe_allow_html=True)  # Close main container 
+st.markdown('</main>', unsafe_allow_html=True)  # Close main container
