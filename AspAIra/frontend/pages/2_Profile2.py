@@ -1,16 +1,15 @@
 import streamlit as st
 import requests
-import json
 
-# Check if user is logged in and profile1 is complete
+# Initialize session states if not exists
 if 'access_token' not in st.session_state:
-    st.switch_page("pages/1_Login.py")
-if not st.session_state.get('profile1_complete'):
-    st.switch_page("pages/2_Profile1.py")
+    st.session_state.access_token = None
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 'profile2'
 
 # Page configuration
 st.set_page_config(
-    page_title="AspAIra - Financial Information",
+    page_title="AspAIra - Profile Part 2",
     page_icon="🌱",
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -41,7 +40,6 @@ st.markdown("""
     .stApp {
         max-width: 100%;
         padding: 1rem;
-        forced-color-adjust: none;
     }
     
     .main-container {
@@ -52,75 +50,45 @@ st.markdown("""
         padding: 1rem;
         max-width: 800px;
         margin: 0 auto;
-        forced-color-adjust: none;
     }
     
     .logo {
         font-size: 2rem;
         margin-bottom: 2rem;
         color: #000000;
-        forced-color-adjust: none;
     }
     
-    /* Progress bar container */
-    .progress-container {
-        width: 100%;
-        max-width: 600px;
-        margin: 1rem auto;
-        padding: 1rem;
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        text-align: center;
-        forced-color-adjust: none;
-    }
-    
-    /* Form container */
     .form-container {
         width: 100%;
-        max-width: 600px;
-        margin: 2rem auto;
+        max-width: 400px;
+        margin: 0 auto;
         padding: 2rem;
         background-color: #f8f9fa;
         border-radius: 8px;
-        forced-color-adjust: none;
-    }
-    
-    /* Button container */
-    .button-container {
-        width: 100%;
-        max-width: 300px;
-        margin: 1rem auto;
-        forced-color-adjust: none;
     }
     
     /* Button styles */
     .stButton > button {
-        width: 100% !important;
+        width: 200px !important;
         padding: 0.75rem 1.5rem !important;
         font-size: 1.1rem !important;
         font-weight: 500 !important;
         border-radius: 8px !important;
-        background-color: #FF4B4B !important;
+        background-color: #2E8B57 !important;
         color: white !important;
-        border: 2px solid transparent !important;
+        border: none !important;
         cursor: pointer !important;
         transition: background-color 0.2s ease !important;
-        forced-color-adjust: none !important;
+        margin: 0 auto !important;
+        display: block !important;
     }
     
     .stButton > button:hover {
-        background-color: #E63E3E !important;
+        background-color: #3CB371 !important;
     }
     
     .stButton > button:focus {
-        outline: 2px solid #000000 !important;
-        outline-offset: 2px !important;
-    }
-    
-    /* Form field styles */
-    .form-row {
-        margin-bottom: 1rem;
-        forced-color-adjust: none;
+        box-shadow: 0 0 0 2px #3CB371 !important;
     }
     
     /* Hide problematic elements */
@@ -128,12 +96,21 @@ st.markdown("""
         display: none !important;
     }
     
+    /* Form field styles */
+    .stTextInput > div > div > input {
+        font-size: 1rem !important;
+    }
+    
+    .form-row {
+        margin-bottom: 1rem;
+    }
+    
     @media (forced-colors: active) {
         .stButton > button {
             border: 2px solid ButtonText !important;
             background-color: ButtonFace !important;
             color: ButtonText !important;
-            forced-color-adjust: none !important;
+            forced-colors-adjust: none !important;
         }
         
         .stButton > button:hover,
@@ -143,101 +120,104 @@ st.markdown("""
             color: Highlight !important;
         }
         
-        .form-container,
-        .progress-container {
+        .form-container {
             border: 1px solid ButtonText !important;
             background-color: Canvas !important;
             color: CanvasText !important;
-            forced-color-adjust: none !important;
+            forced-colors-adjust: none !important;
+        }
+        
+        .stTextInput > div > div > input {
+            border-color: ButtonText !important;
+            background-color: Field !important;
+            color: FieldText !important;
         }
         
         .logo {
             color: CanvasText !important;
-            forced-color-adjust: none !important;
         }
     }
 </style>
 """, unsafe_allow_html=True)
 
-def update_profile(data):
+def update_profile_part2(profile_data: dict):
     try:
-        headers = {
-            "Authorization": f"Bearer {st.session_state.access_token}",
-            "Content-Type": "application/json"
-        }
-        st.write("Sending data:", data)  # Debug print
+        headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
         response = requests.post(
             "http://localhost:8000/user/profile2",
-            json=data,
+            json=profile_data,
             headers=headers
         )
-        st.write("Response status:", response.status_code)  # Debug print
-        st.write("Response text:", response.text)  # Debug print
-        return response.status_code == 200, response.text
-    except Exception as e:
-        st.write("Error:", str(e))  # Debug print
-        return False, str(e)
+        if response.status_code == 200:
+            return True
+        return False
+    except requests.RequestException:
+        return False
 
-# Main container with semantic HTML
-st.markdown('<main class="main-container">', unsafe_allow_html=True)
+# Main container
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-# Logo and Title
-st.markdown('<h1 class="logo">🌱 AspAIra</h1>', unsafe_allow_html=True)
+# Title
+st.markdown('<div class="title-container"><h1>🌱 AspAIra</h1></div>', unsafe_allow_html=True)
 
-# Progress indicator
-st.markdown('<div class="progress-container">', unsafe_allow_html=True)
-st.progress(1.0)
-st.markdown('<p>Step 2 of 2: Financial Information</p>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+# Form container with grey background
+st.markdown('<div class="form-container">', unsafe_allow_html=True)
 
-st.title("Financial Information")
-
-# Initialize session state for form fields if not exists
-if 'profile2_data' not in st.session_state:
-    st.session_state.profile2_data = {}
-
-# Form container with proper form handling
-with st.form("profile2"):
-    st.markdown('<div class="form-container">', unsafe_allow_html=True)
+# Create form with select boxes
+with st.form("profile2_form"):
+    st.markdown("### Financial Information")
     
-    bank = st.selectbox(
-        "Bank Account",
-        ["", "FAB", "Emirates NBD", "ADCB", "ADIB", "No Bank Account"]
+    bank_account = st.selectbox(
+        "Which bank do you use?",
+        ["", "FAB", "Emirates NBD", "ADCB", "ADIB", "No Bank Account"],
+        key="bank_account"
     )
     
-    debt = st.selectbox(
-        "Debt Information",
-        ["", "Debt in Home Country", "Debt in UAE", "No Debt"]
+    debt_information = st.selectbox(
+        "Do you have any debt?",
+        ["", "Debt in Home Country", "Debt in UAE", "No Debt"],
+        key="debt_information"
     )
-
-    remittance = st.selectbox(
-        "Remittance Information",
+    
+    remittance_information = st.selectbox(
+        "How do you send money?",
         ["", "Send money with Bank Transfer", "Send money with Exchange House", 
-         "Send money offline", "Don't Send any money"]
+         "Send money offline", "Don't Send any money"],
+        key="remittance_information"
     )
     
-    data = {
-        'bank_account': bank,
-        'debt_information': debt,
-        'remittance_information': remittance
-    }
+    remittance_amount = st.selectbox(
+        "How much do you send monthly?",
+        ["", "Less than 100 AED", "100-500 AED", "500-1000 AED", "1000-2000 AED", "More than 2000 AED"],
+        key="remittance_amount"
+    )
     
-    st.write("Current values:", data)
-    
-    submitted = st.form_submit_button("Complete Profile")
-    
-    if submitted:
-        if "" in data.values():
-            st.error("Please fill all fields")
-        else:
-            success, message = update_profile(data)
-            if success:
-                st.session_state.profile2_data = data
-                st.session_state.profile2_complete = True
-                st.success("Profile completed!")
-                st.switch_page("pages/3_Coach_Landing.py")
-            else:
-                st.error(f"Error: {message}")
+    # Submit button with proper title and no ARIA attributes
+    submit_button = st.form_submit_button(
+        "Continue",
+        type="primary",
+        use_container_width=True,
+        help="Continue to next step"
+    )
 
-st.markdown('</div>', unsafe_allow_html=True)  # Close form container
-st.markdown('</main>', unsafe_allow_html=True)  # Close main container
+# Handle form submission
+if submit_button:
+    # Check if any field is empty
+    if "" in [bank_account, debt_information, remittance_information, remittance_amount]:
+        st.error("Please fill all fields")
+    else:
+        profile_data = {
+            "bank_account": bank_account,
+            "debt_information": debt_information,
+            "remittance_information": remittance_information,
+            "remittance_amount": remittance_amount
+        }
+        
+        if update_profile_part2(profile_data):
+            st.success("Profile updated successfully!")
+            st.switch_page("pages/3_Coach_Landing.py")
+        else:
+            st.error("Failed to update profile. Please try again.")
+
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)

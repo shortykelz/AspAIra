@@ -74,20 +74,20 @@ st.markdown("""
         font-size: 1.1rem !important;
         font-weight: 500 !important;
         border-radius: 8px !important;
-        background-color: #FF4B4B !important;
+        background-color: #2E8B57 !important;
         color: white !important;
-        border: 2px solid transparent !important;
+        border: none !important;
         cursor: pointer !important;
         transition: background-color 0.2s ease !important;
+        margin-bottom: 0.5rem !important;
     }
     
     .stButton > button:hover {
-        background-color: #E63E3E !important;
+        background-color: #3CB371 !important;
     }
     
     .stButton > button:focus {
-        outline: 2px solid #000000 !important;
-        outline-offset: 2px !important;
+        box-shadow: 0 0 0 2px #3CB371 !important;
     }
     
     /* Hide problematic elements */
@@ -134,6 +134,33 @@ st.markdown("""
             color: CanvasText !important;
         }
     }
+    
+    /* Center title */
+    .title-container {
+        text-align: center;
+        padding: 2rem 0;
+    }
+    
+    /* Form container */
+    .form-container {
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 2rem;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    /* Button container */
+    .button-container {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .button-container > div {
+        flex: 1;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -171,94 +198,52 @@ def check_profile_status(token: str):
     except requests.RequestException:
         return {"profile1_complete": False, "profile2_complete": False}
 
-# Main container with semantic HTML
-st.markdown('<main class="main-container">', unsafe_allow_html=True)
+# Main container
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-# Back button with proper labeling
-st.markdown('<div class="button-container">', unsafe_allow_html=True)
-if st.button(
-    "← Back to Home",
-    key="back_button",
-    help="Return to the main page",
-    use_container_width=True,
-    type="primary"
-):
-    st.switch_page("Home.py")
-st.markdown('</div>', unsafe_allow_html=True)
+# Title
+st.markdown('<div class="title-container"><h1>🌱 AspAIra</h1></div>', unsafe_allow_html=True)
 
-# Logo and Title
-st.markdown('<h1 class="logo">🌱 AspAIra</h1>', unsafe_allow_html=True)
+# Form container with grey background
+st.markdown('<div class="form-container">', unsafe_allow_html=True)
 
-# Login form with proper labeling
-with st.form("login_form", clear_on_submit=True):
-    st.markdown('<div class="form-container">', unsafe_allow_html=True)
-    
-    st.markdown('<div class="form-row">', unsafe_allow_html=True)
-    username = st.text_input(
-        "Username",
-        key="username",
-        autocomplete="username",
-        help="Enter your username",
-        placeholder="Enter your username"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="form-row">', unsafe_allow_html=True)
-    password = st.text_input(
-        "Password",
-        type="password",
-        key="password",
-        autocomplete="current-password",
-        help="Enter your password",
-        placeholder="Enter your password"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        login_button = st.form_submit_button(
-            "Sign In",
-            use_container_width=True,
-            help="Sign in to your account"
-        )
-    with col2:
-        signup_button = st.form_submit_button(
-            "Create Account",
-            use_container_width=True,
-            help="Create a new account"
-        )
+username = st.text_input("Username")
+password = st.text_input("Password", type="password")
 
-    if login_button and username and password:
-        result = login(username, password)
-        if result:
-            st.session_state.access_token = result["access_token"]
-            # Check profile status
-            profile_status = check_profile_status(result["access_token"])
-            st.session_state.profile_status = profile_status
-            
-            if not profile_status["profile1_complete"]:
-                st.success("Login successful! Please complete your profile.")
-                st.switch_page("pages/2_Profile1.py")
-            elif not profile_status["profile2_complete"]:
-                st.success("Login successful! Please complete your financial profile.")
-                st.switch_page("pages/2_Profile2.py")
+# Button container for side-by-side buttons
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("Sign In"):
+        if not username or not password:
+            st.error("Please enter both username and password")
+        else:
+            success = login(username, password)
+            if success:
+                st.session_state.access_token = success["access_token"]
+                # Check profile status after successful login
+                profile_status = check_profile_status(success["access_token"])
+                if profile_status["profile1_complete"] and profile_status["profile2_complete"]:
+                    st.success("Login successful!")
+                    st.switch_page("pages/3_Coach_Landing.py")
+                else:
+                    st.success("Login successful! Please complete your profile.")
+                    st.switch_page("pages/2_Profile1.py")
+
+with col2:
+    if st.button("Create Account"):
+        if not username or not password:
+            st.error("Please enter both username and password")
+        else:
+            if create_account(username, password):
+                st.success("Account created successfully!")
+                # Log in the user automatically
+                success = login(username, password)
+                if success:
+                    st.session_state.access_token = success["access_token"]
+                    st.switch_page("pages/2_Profile1.py")
             else:
-                st.success("Login successful!")
-                st.switch_page("pages/3_Coach_Landing.py")
-        else:
-            st.error("Invalid username or password")
+                st.error("Failed to create account. Username may already exist.")
 
-    if signup_button and username and password:
-        if create_account(username, password):
-            result = login(username, password)  # Auto-login after signup
-            if result:
-                st.session_state.access_token = result["access_token"]
-                st.session_state.profile_status = {"profile1_complete": False, "profile2_complete": False}
-                st.success("Account created successfully! Please complete your profile.")
-                st.switch_page("pages/2_Profile1.py")
-        else:
-            st.error("Username already exists or error creating account")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('</main>', unsafe_allow_html=True) 
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True) 

@@ -27,6 +27,7 @@ class ProfilePart2(BaseModel):
     debt_information: Literal["Debt in Home Country", "Debt in UAE", "No Debt"]
     remittance_information: Literal["Send money with Bank Transfer", "Send money with Exchange House", 
                                   "Send money offline", "Don't Send any money"]
+    remittance_amount: Literal["Less than 100 AED", "100-500 AED", "500-1000 AED", "1000-2000 AED", "More than 2000 AED"]
 
 class Token(BaseModel):
     access_token: str
