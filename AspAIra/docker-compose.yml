@@ -1,0 +1,104 @@
+version: '3.1'
+
+services:
+  # DynamoDB Local - Simple in-memory setup
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -inMemory"
+    restart: unless-stopped
+
+  # Dify API with minimal dependencies
+  dify-api:
+    image: langgenius/dify-api:1.0.0
+    restart: always
+    environment:
+      MODE: api
+      EDITION: COMMUNITY
+      DEPLOY_ENV: PRODUCTION
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DIFY_API_KEY: ${DIFY_API_KEY}
+      DEFAULT_LLM_MODEL: ${DEFAULT_LLM_MODEL}
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+      # Database settings
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_DATABASE: ${DB_DATABASE}
+      # Redis settings
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Vector store settings
+      VECTOR_STORE: weaviate
+      WEAVIATE_ENDPOINT: http://weaviate:8080
+      WEAVIATE_API_KEY: ${WEAVIATE_API_KEY}
+      # Storage settings
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/api/storage
+      # URLs
+      CONSOLE_URL: http://localhost:3000
+      CONSOLE_API_URL: http://localhost:5001
+      SERVICE_API_URL: http://localhost:5001
+    depends_on:
+      - postgres
+      - redis
+      - weaviate
+    ports:
+      - "5001:5001"
+
+  # Postgres setup
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "5432:5432"
+
+  # Redis for Dify
+  redis:
+    image: redis:6-alpine
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+
+  # Dify Web UI
+  dify-web:
+    image: langgenius/dify-web:1.0.0
+    restart: always
+    environment:
+      EDITION: COMMUNITY
+      DEPLOY_ENV: PRODUCTION
+      NEXT_PUBLIC_API_URL: http://localhost:5001
+      NEXT_PUBLIC_CONSOLE_URL: http://localhost:3000
+      CONSOLE_API_URL: http://localhost:5001
+      APP_API_URL: http://localhost:5001
+      NEXT_TELEMETRY_DISABLED: 1
+      DEBUG: "true"
+    depends_on:
+      - dify-api
+    ports:
+      - "3000:3000"
+
+  weaviate:
+    image: semitechnologies/weaviate:1.19.0
+    restart: always
+    environment:
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: true
+      DEFAULT_VECTORIZER_MODULE: none
+      CLUSTER_HOSTNAME: node1
+      AUTHENTICATION_APIKEY_ENABLED: true
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: ${WEAVIATE_API_KEY}
+      AUTHENTICATION_APIKEY_USERS: hello@dify.ai
+      AUTHORIZATION_ADMINLIST_ENABLED: true
+      AUTHORIZATION_ADMINLIST_USERS: hello@dify.ai
+    ports:
+      - "8080:8080" 
